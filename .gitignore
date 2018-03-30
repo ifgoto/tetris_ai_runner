@@ -18,6 +18,9 @@ $RECYCLE.BIN/
 # Operating System Files
 # =========================
 
+# windows
+.vs
+
 # OSX
 # =========================
 
@@ -26,7 +29,8 @@ $RECYCLE.BIN/
 .LSOverride
 
 # Icon must ends with two \r.
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -50,3 +54,8 @@ Icon
 *.lastbuildstate
 *.TMP
 *.ilk
+tetris_ai_runner.exe
+tetris_ai_dll.dll
+Debug/*.dll
+demo.dll
+the_ai_games.exe

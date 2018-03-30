@@ -33,8 +33,10 @@ extern "C" void attach_init()
 
 struct tetris_game
 {
-    typedef int(*ai_run_t)(int boardW, int boardH, int board[], char nextPiece[], int curX, int curY, int curR, int level, int mode, char path[], size_t limit);
-    m_tetris::TetrisEngine<rule_qq::TetrisRule, ai_zzz::qq::Attack, search_path::Search> tetris_ai;
+    //typedef int(*ai_run_t)(int boardW, int boardH, int board[], char nextPiece[], int curX, int curY, int curR, int level, int mode, char path[], size_t limit);
+	typedef int(__stdcall *ai_run_t)(int boardW, int boardH, char board[], char curPiece, int curX, int curY, int curR, char *nextPiece, char path[]);
+    //m_tetris::TetrisEngine<rule_qq::TetrisRule, ai_zzz::qq::Attack, search_path::Search> tetris_ai;
+	m_tetris::TetrisEngine<rule_st::TetrisRule, ai_zzz::Dig, search_simple::Search> tetris_ai;
     ege::mtrandom random;
     m_tetris::TetrisMap map;
     std::vector<char> next;
@@ -58,12 +60,15 @@ struct tetris_game
         {
             map.row[y] = map.row[y - line];
         }
+
         for(size_t y = 0; y < line; ++y)
         {
             map.row[y] = 0;
+			size_t hole = random.rand() % w;
             for(size_t x = 0; x < w; ++x)
             {
-                if((x + y) % 2 != 0)
+                //if((x + y) % 2 != 0)
+                if(x != hole) 
                 {
                     map.row[y] |= 1 << x;
                 }
@@ -95,21 +100,42 @@ struct tetris_game
         {
             return 0;
         }
-        ai = GetProcAddress(hDll, "_QQTetrisAI@44");
+		ai = GetProcAddress(hDll, "_AIPath@36");
+#if 0
+		if (ai == nullptr) {
+			ai = GetProcAddress(hDll, "_AI@40");
+		}
         if(ai == NULL)
         {
             ai = GetProcAddress(hDll, "QQTetrisAI@44");
         }
         if(ai == NULL)
         {
-            ai = GetProcAddress(hDll, "QQTetrisAI");
+            ai = GetProcAddress(hDll, "_AIPath@36");
         }
+#endif
         tetris_ai.prepare(w, h);
         return 1;
     }
 
     int run(size_t limit)
     {
+		const size_t w = 10;
+		const size_t h = 20;
+		char param_map[w * h];
+		memset(param_map, 0x00, sizeof(param_map));
+		char path[1024];
+		memset(path, 0x00, sizeof(path));
+
+        for(int y = 0; y < h; ++y)
+        {
+            int row = y * w;
+            for(int x = 0; x < w; ++x)
+            {
+                param_map[x + row] = map.full(x, y) ? '1' : '0';
+            }
+        }
+
         fill_next();
         m_tetris::TetrisNode const *node = tetris_ai.context()->generate(next.front());
         if(map.row[tetris_ai.context()->height() - 1] != 0 || !node->check(map))
@@ -118,7 +144,17 @@ struct tetris_game
         }
         std::memset(path, 0, sizeof path);
         next.push_back(0);
-        ((ai_run_t)ai)(tetris_ai.context()->width(), tetris_ai.context()->height(), reinterpret_cast<int *>(map.row), next.data(), node->status.x, node->status.y, (4 - node->status.r) % 4, 10, 0, path, limit);
+        //((ai_run_t)ai)(tetris_ai.context()->width(), tetris_ai.context()->height(), reinterpret_cast<int *>(map.row), next.data(), node->status.x, node->status.y, (4 - node->status.r) % 4, 10, 0, path, limit);
+        //((ai_run_t)ai)(tetris_ai.context()->width(), tetris_ai.context()->height(), reinterpret_cast<int *>(map.row), next.data(), node->status.x, node->status.y, (4 - node->status.r) % 4, 10, 0, path, limit);
+		//((ai_run_t)ai)(tetris_ai.context()->width(), tetris_ai.context()->height(), param_map, node->status.t, node->status.x + 1,
+
+
+		char my_next[2 + 1];
+		my_next[0] = next[0];
+		my_next[1] = next[1];
+		my_next[2] = 0x00;
+		((ai_run_t)ai)(tetris_ai.context()->width(), tetris_ai.context()->height(), param_map, my_next[0], node->status.x + 1,
+			node->status.y + 1, node->status.r + 1, my_next+1, path);
         char *move = path, *move_end = path + sizeof path;
         next.pop_back();
         next.erase(next.begin());
@@ -232,8 +268,8 @@ int wmain(unsigned int argc, wchar_t *argv[], wchar_t *eve[])
         return speed_test(argc, argv, eve);
     }
     tetris_game game[2];
-    game[0].init(12, 21, 13, argv[1]);
-    game[1].init(12, 21, 13, argv[2]);
+    game[0].init(10, 20, 13, argv[1]);
+    game[1].init(10, 20, 13, argv[2]);
     size_t new_seed = ege::mtirand();
     game[0].new_game(new_seed);
     game[1].new_game(new_seed);
